@@ -8,7 +8,9 @@
   "Return the set of values of a vector or grid `cells`."
   [cells]
   ;;; à compléter
-  nil)
+  (reduce (fn [res cell] (if-let [val (:value cell)]
+                           (conj res val)
+                           res)) #{} cells))
 
 (fact
  (values (g/block sudoku-grid 1)) => #{5 3 6 9 8})
@@ -23,7 +25,7 @@
  (values (g/block sudoku-grid 8)) => #{4 1 9 8})
 
 (fact
- (values (g/row sudoku-grid 8)) => #{6 4 1 9 5})
+ (values (g/row sudoku-grid 8)) => #{4 1 9 5})
 
 (fact
  (values (g/col sudoku-grid 8)) => #{6 8 7})
@@ -32,8 +34,8 @@
   "Return the set of values of a vector of cells, except the `except`-th."
   [cells except]
   {:pre [(<= 1 except (count cells))]}
-  ;;; à compléter
-  nil)
+  (let [except-value (:value (get cells (dec except)))]
+    (disj (values cells) except-value)))
 
 (fact
  (values-except (g/block sudoku-grid 1) 1) => #{3 9 6 8})
@@ -90,17 +92,35 @@
                (contains? (values-except values except) value))
       value)))
 
+(defn row-find-conflicts
+  [row cx cy res]
+  (let [actual-cell (get row (dec cx))]
+    (reduce (fn [res cx2] (let [cell (get row (dec cx2))]
+                            (if (and (= (:value actual-cell) (:value cell))
+                                     (not (= cx cx2))
+                                     (not (= :empty (:status actual-cell)))
+                                     (not (= :empty (:status cell))))
+                              (cond
+                                (and (= :set (:status actual-cell)) (= :init (:status cell)))
+                                (assoc res [cx cy] (mk-conflict :row cx2 cy (:value actual-cell)))
+                                (and (= :init (:status actual-cell)) (= :set (:status cell)))
+                                (assoc res [cx2 cy] (mk-conflict :row cx cy (:value actual-cell)))
+                                :else
+                                (assoc res [cx cy] (mk-conflict :row cx cy (:value actual-cell))
+                                           [cx2 cy] (mk-conflict :row cx2 cy (:value actual-cell))))
+                              res))) res (range 1 (inc (count row))))))
+
 (defn row-conflicts
   "Returns a map of conflicts in a `row`."
   [row cy]
-  ;;; à compléter
-  nil)
+  (reduce (fn [res, cx] (row-find-conflicts row cx cy res)) {} (range 1 (inc (count row)))))
+
 
 (fact
- (row-conflicts (map #(g/mk-cell :set %) [1 2 3 4]) 1) => {})
+ (row-conflicts (mapv #(g/mk-cell :set %) [1 2 3 4]) 1) => {})
 
 (fact
- (row-conflicts (map #(g/mk-cell :set %) [1 2 3 1]) 1)
+ (row-conflicts (mapv #(g/mk-cell :set %) [1 2 3 1]) 1)
  => {[1 1] {:status :conflict, :kind :row, :value 1},
      [4 1] {:status :conflict, :kind :row, :value 1}})
 
@@ -112,25 +132,78 @@
   (reduce merge-conflicts {}
           (map (fn [r] (row-conflicts (g/row grid r) r)) (range 1 10))))
 
-(defn col-conflicts
-  "Returns a map of conflicts in a `col`."
-  [col cx]
-  ;;; à compléter
-  nil)
 
-;;; Ecrire les 'fact'  nécessaires...
+(defn col-find-conflicts
+  [col cx cy res]
+  (let [actual-cell (get col (dec cy))]
+    (reduce (fn [res cy2] (let [cell (get col (dec cy2))]
+                            (if (and (= (:value actual-cell) (:value cell))
+                                     (not (= cy cy2))
+                                     (not (= :empty (:status actual-cell)))
+                                     (not (= :empty (:status cell))))
+                              (cond
+                                (and (= :set (:status actual-cell)) (= :init (:status cell)))
+                                (assoc res [cx cy] (mk-conflict :col cx cy2 (:value actual-cell)))
+                                (and (= :init (:status actual-cell)) (= :set (:status cell)))
+                                (assoc res [cx cy2] (mk-conflict :col cx cy (:value actual-cell)))
+                                :else
+                                (assoc res [cx cy] (mk-conflict :col cx cy (:value actual-cell))
+                                           [cx cy2] (mk-conflict :col cx cy2 (:value actual-cell))))
+                              res))) res (range 1 (inc (count col))))))
+
+(defn col-conflicts
+  "Returns a map of conflicts in a `row`."
+  [row cx]
+  (reduce (fn [res, cy] (col-find-conflicts row cx cy res)) {} (range 1 (inc (count row)))))
+
+(fact
+  (col-conflicts (mapv #(g/mk-cell :set %) [1 2 3 4]) 1) => {})
+
+(fact
+  (col-conflicts (mapv #(g/mk-cell :set %) [1 2 3 1]) 1)
+  => {[1 1] {:status :conflict, :kind :col, :value 1},
+      [1 4] {:status :conflict, :kind :col, :value 1}})
+
+(fact
+  (col-conflicts [{:status :init, :value 8} {:status :empty} {:status :empty} {:status :empty} {:status :init, :value 6} {:status :set, :value 6} {:status :empty} {:status :empty} {:status :init, :value 3}] 4)
+  => {[4 6] {:status :conflict, :kind :col, :value 6}})
+
 
 (defn cols-conflicts
   [grid] (reduce merge-conflicts {}
                  (map (fn [c] (col-conflicts (g/col grid c) c)) (range 1 10))))
 
 
+(defn block-find-conflicts
+  [block pos positions res]
+  (let [actual-cell (get block pos)]
+    (reduce (fn [res pos2] (let [cell (get block pos2)]
+                            (if (and (= (:value actual-cell) (:value cell))
+                                     (not (= pos pos2))
+                                     (not (= :empty (:status actual-cell)))
+                                     (not (= :empty (:status cell))))
+                              (let [[cx, cy] (get positions pos)
+                                    [cx2, cy2] (get positions pos2)]
+                                (cond
+                                  (and (= :set (:status actual-cell)) (= :init (:status cell)))
+                                  (assoc res [cx cy] (mk-conflict :block cx cy (:value actual-cell)))
+                                  (and (= :init (:status actual-cell)) (= :set (:status cell)))
+                                  (assoc res [cx2 cy2] (mk-conflict :block cx2 cy2 (:value actual-cell)))
+                                  :else
+                                  (assoc res [cx cy] (mk-conflict :block cx cy (:value actual-cell))
+                                             [cx2 cy2] (mk-conflict :block cx2 cy2 (:value actual-cell)))))
+                              res))) res (range 0 (inc (count block))))))
+
 (defn block-conflicts
   [block b]
-  ;;; à compléter
-  nil)
+  (let [positions (g/reduce-block (fn [acc index cx cy cell] (conj acc [cx,cy])) [] block b)]
+    (reduce (fn [res, pos] (block-find-conflicts block pos positions res)) {} (range 0 (inc (count block))))))
 
 ;;; Ecrire les 'fact' nécessaires...
+(fact
+  (block-conflicts [{:status :init, :value 8} {:status :empty} {:status :empty} {:status :empty} {:status :init, :value 6} {:status :set, :value 6} {:status :empty} {:status :empty} {:status :init, :value 3}] 6)
+  => {[9 5] {:status :conflict, :kind :block, :value 6}})
+
 
 (defn blocks-conflicts
   [grid]

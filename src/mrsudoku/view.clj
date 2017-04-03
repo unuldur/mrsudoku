@@ -71,7 +71,9 @@
                                                       :vgap 20
                                                       :items [(button :text "Load")
                                                               (button :text "Solve")
-                                                              (button :text "Quit")])
+                                                              (button :text "Quit"
+                                                                      :listen [:action
+                                                                               :exit])])
                                                      :fill-v])
                                             [:fill-h 32]])
                           :minimum-size [540 :by 380]
