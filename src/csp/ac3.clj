@@ -1,4 +1,6 @@
-(ns csp.ac3)
+(ns csp.ac3
+  (:require
+    [csp.alldiff :as all]))
 
 (defn choix-variable-min [doms] (first (apply min-key #(count %) doms)))
 
@@ -177,38 +179,67 @@
       todo)))
 
 
+
+
 (defn valider-choix
+  "revois le nouveaux domaine pour avec certaine valeur deja fixé"
   [domaine choix contrainte]
-  (let [domaine (reduce (fn [res [cle valeur]]
+  (let [domaine (reduce (fn [res [cle valeur]] ;; rajoute a domaine les choix
                           (assoc res cle (set (list valeur))))
                         domaine
                         choix)]
-    (if-let [domaine' (ac3 contrainte domaine)]
-      ;;TODO ajout all dif
-      ;;domaine' (all-diff domaine)
+    (if-let [domaine' (ac3 contrainte domaine)] ;;calcule le domaine qui
+      (if-let [domaine' (all/alldiff domaine')] ;;correspond aux contraintes
 
 
-      (reduce (fn [res [cle _]]
-                (dissoc res cle))
+        (reduce (fn [res [cle _]]) ;;eleve au domaine les choix
+                (dissoc res cle)
               domaine'
               choix)
+        nil)
       nil)))
 
 
+(fact
+ (valider-choix  {:b { :1 :2 :3} :c { :1 :2 :3} } { :a :1} {}) => {:b { :2 :3} :c { :2 :3}})
+
+;; structure stack :
+;; [doms choix stack-précédente]
+;; init    : [ {:a { :1 :2 :3} :b { :1 :2 :3} :c { :1 :2 :3} } {} {} ]
+
+;; etape 2 : [ {:b { :2 :3} :c { :2 :3} } {:a :1}
+;;            [   {:a { :2 :3} :b { :1 :2 :3} :c { :1 :2 :3} } {} {} ] ]
+
+;; etape 3 : [ {:c { :3} } {:a :1 :b :2 }
+;;             [ {:b { :3} :c { :2 :3} } {:a :1}
+;;               [   {:a { :2 :3} :b { :1 :2 :3} :c { :1 :2 :3} } {} {} ] ] ]
+
+;; etape 3 : [{:a :1 :b :2 :c :3}    <-- choix
+;;             [ {:c {} } {:a :1 :b :2}]
+;;               [ {:b { :3} :c { :2 :3} } {:a :1}
+;;                 [   {:a { :2 :3} :b { :1 :2 :3} :c { :1 :2 :3} } {} {} ] ] ]
+
+
+
+
+
+
 (defn gen-aux
+  "construit la stack et retour un couple [choix next-stack]"
   [constraint stack]
   (if (empty? stack)
     nil
     (let [[doms choix next-stack] stack
           [var variables] (first doms)]
       (if (empty? doms)
-        [choix next-stack]
+        [choix next-stack] ;;retour
         (if (empty? variables)
           (gen-aux constraint next-stack)
           (let [ choix-val (first variables)
                 new-choix (assoc choix var choix-val)
                 doms' (assoc doms var (set (rest variables)))
-                new-next-stack [doms' choix next-stack]]
+                new-next-stack [doms' choix next-stack]]    ;; calcule le next stack en y retirant ce que l'on est entreint de tester
+
             (if-let [new-doms (valider-choix (dissoc doms var ) new-choix  constraint)]
               (gen-aux constraint [new-doms new-choix new-next-stack])
               (gen-aux constraint new-next-stack))))))))
@@ -216,6 +247,7 @@
 
 
 (defn lazy-gen
+  "genere la sequence des solutions possibles"
   ([constraint doms] (lazy-gen constraint doms [doms {} {}]))
   ([constraint doms stack]
    (if-let [[sol stack'] (gen-aux constraint stack)]
