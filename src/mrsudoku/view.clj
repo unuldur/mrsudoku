@@ -79,7 +79,7 @@
             (-> (mk-frame-solve solve (atom {:grid solve}))
                 pack!
                 show!)))
-        (alert e "Il n'y a pas de solution")))
+        (alert e "Il n'y a pas qu'une unique solution")))
 
 (defn mk-main-frame [grid ctrl]
   (let [grid-widget (mk-grid-view grid ctrl)

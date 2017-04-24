@@ -1,10 +1,12 @@
 (ns mrsudoku.solveur
   (:require
     [mrsudoku.grid :as g]
-    [csp.alldiff :as all]))
+    [csp.alldiff :as all]
+    [csp.ac3 :as ac3]))
 
 
 (defn mkvar
+  "creer un keyword x y"
   [x y]
   (keyword (str x y)))
 
@@ -19,21 +21,25 @@
             {} (range 1 (inc size)))))
 
 (defn alldif-col
+  "creer les domaines alldif d'une colonne"
   [doms col]
   (reduce (fn [res row] (let [var (mkvar col row)]
                           (assoc res var (get doms var)))) {} (range 1 10)))
 
 (defn alldif-row
+  "creer les domaines alldif d'une ligne"
   [doms row]
   (reduce (fn [res col] (let [var (mkvar col row)]
                           (assoc res var (get doms var)))) {} (range 1 10)))
 
 (defn alldiff-block
+  "creer les domaines alldif d'un block"
   [doms pos]
   (reduce (fn [res [col row]] (let [var (mkvar col row)]
                           (assoc res var (get doms var)))) {} pos))
 
 (defn mkvartype
+  "Creer un keyword a partir du type et du numero"
   [type num]
   (keyword (str type num)))
 
@@ -80,6 +86,7 @@
                                  false)) true doms))
 
 (defn test-sudoku
+  "retourne les nouveaux domaines diminuer au maximun d'un sudoku, retourne nil si ce n'est pas un vrai sudoku"
   [doms]
   (loop [doms doms stop false]
     (if stop

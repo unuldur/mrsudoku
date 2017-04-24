@@ -3,22 +3,29 @@
     [graph.algo :as ga]))
 
 (defn doms-from-component
+  "Obtiens les domaines d'un component"
   [doms component]
   (let [[cvars cvals] component]
     (reduce (fn [res var]
               (assoc res var cvals)) doms cvars)))
 
-(defn doms-from-scc [scc]
+(defn doms-from-scc
+  "Obtiens les domaines a partir d'un scc"
+  [scc]
   (reduce doms-from-component {} scc))
 
-(defn isolated-values [scc]
+(defn isolated-values
+  "Obtiens les valeurs isoler dans un scc"
+  [scc]
   (reduce (fn [res component]
             (let [[cvars cvals] component]
               (if (empty? cvars)
                 (clojure.set/union res cvals)
                 res))) #{} scc))
 
-(defn isolated-vars [scc]
+(defn isolated-vars
+  "Obtiens les varsiables isoler dans un scc"
+  [scc]
   (reduce (fn [res component]
             (let [[cvars cvals] component]
               (if (empty? cvals)
@@ -31,7 +38,9 @@
               (conj vars var)
               vars)) #{} doms))
 
-(defn add-value [doms vars value]
+(defn add-value
+  "Ajoute une valeur dans le domaine"
+  [doms vars value]
   (reduce (fn [doms var]
             (update doms var (fn [values]
                                (if (seq values)
@@ -40,7 +49,7 @@
           doms vars))
 
 (defn isolated-vars-doms
-  "docstring"
+  "recupere les valeurs isoler des domaines"
   [doms new-vars]
   (loop [vars new-vars]
     (if (seq vars)
@@ -49,7 +58,9 @@
         (recur (rest vars)))
       new-vars)))
 
-(defn access [doms scc]
+(defn access
+  "met a jour les domaines en fonction du scc"
+  [doms scc]
   (let [doms' (doms-from-scc scc)
         isolated (isolated-values scc)
         ivars (isolated-vars scc)]
@@ -58,6 +69,7 @@
             doms' isolated)))
 
 (defn alldiff [doms]
+  "fait un alldiff sur les domaines"
   (if-let [doms' (ga/scc doms)]
     (access doms doms')
     nil))

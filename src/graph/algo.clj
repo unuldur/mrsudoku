@@ -25,7 +25,9 @@
         (recur (distinct (concat succs (rest stack))) visited' acc'))
       acc)))
 
-(defn augment [bigraph src visited match]
+(defn augment
+  "ajoute de nouveau match du bigraph"
+  [bigraph src visited match]
   (loop [dests (get bigraph src) visited visited match match]
     (if (seq dests)
       (if (visited (first dests))
@@ -59,6 +61,7 @@
           (max-matching doms)))
 
 (defn dfs-stack-from
+  "Creer une pile dfs a partir de `vert`"
   [graph vert visited stk]
   (let [visited (conj visited vert)
         dests (clojure.set/difference (get graph vert) visited)]
@@ -70,7 +73,9 @@
             (recur (rest dests) visited' stk')))
         [(cons vert stk) visited]))))
 
-(defn dfs-stack [graph]
+(defn dfs-stack
+  "Creer une pile dfs"
+  [graph]
   (loop [verts (keys graph) visited #{} stk ()]
     (if (seq verts)
       (if (visited (first verts))
@@ -79,13 +84,17 @@
           (recur (rest verts) visited' stk')))
       stk)))
 
-(defn scc-add [doms comp vert]
+(defn scc-add
+  "Ajoute une valeur dans un scc"
+  [doms comp vert]
   (let [[var, vals] comp]
     (if (contains? doms vert)
       [(conj var vert) vals]
       [var (conj vals vert)])))
 
-(defn  compute-scc [doms tgraph stk]
+(defn  compute-scc
+  "Creer un scc"
+  [doms tgraph stk]
   (loop [stk stk, visited #{}, comps []]
     (if (seq stk)
       (if (visited (first stk))
