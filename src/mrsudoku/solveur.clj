@@ -78,6 +78,40 @@
         nil)
       part')))
 
+(defn dif-all-constrainte
+  "retourne toute les contraintes de difference de `v`"
+  [v]
+  (loop [v v res []]
+    (if (seq v)
+      (recur (rest v) (loop [v2 (rest v) res2 res]
+                        (if (seq v2)
+                          (recur (rest v2) (conj  res2 {:var1 (first v)
+                                                        :var2 (first v2)
+                                                        :check not=}))
+                          res2)))
+      res)))
+
+(defn create-constraint-col
+  [col]
+  (dif-all-constrainte (reduce (fn [res i] (conj res (mkvar col i))) [] (range 1 10))))
+
+(defn create-constrainte-row
+  [row]
+  (dif-all-constrainte (reduce (fn [res i] (conj res (mkvar i row))) [] (range 1 10))))
+
+(defn create-constrainte-block
+  [block]
+  (let [pos-block (g/reduce-block (fn [acc index cx cy cell] (conj acc [cx,cy])) [] {} block)]
+    (dif-all-constrainte (reduce (fn [res [x y]] (conj res (mkvar x y))) [] pos-block))))
+
+
+(def sudoku-constraint (reduce (fn [res i] (clojure.set/union (create-constraint-col i)
+                                                              (create-constrainte-row i)
+                                                              (create-constrainte-block i)
+                                                              res))
+                               []
+                               (range 1 10)))
+
 (defn sudoku-ok
   "retourne si le sudoku est bon"
   [doms]
@@ -90,9 +124,10 @@
   [doms]
   (loop [doms doms stop false]
     (if stop
-      (if (sudoku-ok doms)
-        doms
-        nil)
+      (let [new-doms (ac3/lazy-gen sudoku-constraint doms)]
+        (if (sudoku-ok doms)
+          doms
+          nil))
       (if-let [part' (new-doms (partition-doms doms))]
         (let [doms' (fusion-doms part')]
           (recur doms' (= doms doms')))

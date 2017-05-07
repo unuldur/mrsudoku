@@ -1,6 +1,21 @@
 (ns csp.ac3
+  (:use midje.sweet)
   (:require
     [csp.alldiff :as all]))
+
+(defn mkvar [prefix num]
+  (keyword (str prefix num)))
+
+(def coloriage-doms (reduce (fn [res i] (assoc res (mkvar "v" i) #{:bleu :rouge :vert}))
+                            {}
+                            (range 1 8)))
+
+
+(def coloriage-constraints (mapv (fn [x y] {:var1 (mkvar "v" x)
+                                            :var2 (mkvar "v" y)
+                                            :check not=})
+                                 [1 1 2 2 3 3 3 4 5 6]
+                                 [2 3 3 4 4 5 5 5 6 7]))
 
 (defn choix-variable-min [doms] (first (apply min-key #(count %) doms)))
 
@@ -157,12 +172,6 @@
   (let [[const-ref, xvar] (first todo)]
     [const-ref, xvar, (rest todo)]))
 
-;;TODO **EXERCICE** Proposer une autre heuristique pour la selection d'un autre couple variable et comparer les performances pour le zebre
-(defn select-todo-min
-  "Choisi la vairable avec le domaine minimun"
-  [constraints doms todo]
-  ())
-
 (defn update-todo
   [constraints prev-cref xvar x todo]
   (loop [const-ref 0, todo todo]
@@ -192,8 +201,8 @@
       (if-let [domaine' (all/alldiff domaine')] ;;correspond aux contraintes
 
 
-        (reduce (fn [res [cle _]]) ;;eleve au domaine les choix
-                (dissoc res cle)
+        (reduce (fn [res [cle _]] ;;eleve au domaine les choix
+                (dissoc res cle))
               domaine'
               choix)
         nil)
@@ -201,7 +210,7 @@
 
 
 (fact
- (valider-choix  {:b { :1 :2 :3} :c { :1 :2 :3} } { :a :1} {}) => {:b { :2 :3} :c { :2 :3}})
+ (valider-choix  {:b #{ :1 :2 :3} :c #{ :1 :2 :3} } {:a :1} {}) => {:b #{ :2 :3} :c #{ :2 :3}})
 
 ;; structure stack :
 ;; [doms choix stack-précédente]
