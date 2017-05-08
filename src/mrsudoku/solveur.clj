@@ -1,8 +1,7 @@
 (ns mrsudoku.solveur
   (:require
     [mrsudoku.grid :as g]
-    [csp.alldiff :as all]
-    [csp.ac3 :as ac3]))
+    [csp.alldiff :as all]))
 
 
 (defn mkvar
@@ -118,20 +117,14 @@
   (reduce (fn [res [var vals]] (if (= 1 (count vals))
                                  res
                                  false)) true doms))
-
-(defn test-sudoku
-  "retourne les nouveaux domaines diminuer au maximun d'un sudoku, retourne nil si ce n'est pas un vrai sudoku"
+(defn aux-reduce-doms
   [doms]
-  (loop [doms doms stop false]
-    (if stop
-      (let [new-doms (ac3/lazy-gen sudoku-constraint doms)]
-        (if (sudoku-ok doms)
-          doms
+  (if-let [part' (new-doms (partition-doms doms))]
+   (let [doms' (fusion-doms part')]
+          doms')
           nil))
-      (if-let [part' (new-doms (partition-doms doms))]
-        (let [doms' (fusion-doms part')]
-          (recur doms' (= doms doms')))
-          nil))))
+
+
 
 
 (defn update-grid
