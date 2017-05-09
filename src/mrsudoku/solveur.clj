@@ -124,10 +124,9 @@
   [doms]
   (loop [doms doms stop false]
     (if stop
-      (let [new-doms (ac3/lazy-gen sudoku-constraint doms)]
-        (if (sudoku-ok doms)
-          doms
-          nil))
+      (if-let [res (ac3/generate-and-test sudoku-constraint doms {})]
+          res
+          nil)
       (if-let [part' (new-doms (partition-doms doms))]
         (let [doms' (fusion-doms part')]
           (recur doms' (= doms doms')))
@@ -138,6 +137,6 @@
   "Met a jour la grille de sudoku a partir des contraintes"
   [grid doms]
   (reduce (fn [res x] (reduce (fn [res y] (let [var (mkvar x y)]
-                                            (if (= 1 (count (get doms var)))
-                                              (g/change-cell res x y (g/mk-cell (first (get doms var))))
-                                              res))) res (range 1 10))) grid (range 1 10)))
+                                              (g/change-cell res x y (g/mk-cell (get doms var)))))
+                              res
+                              (range 1 10))) grid (range 1 10)))
