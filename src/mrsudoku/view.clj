@@ -6,24 +6,11 @@
     [seesaw.border :refer [line-border]]
     [seesaw.chooser :refer [choose-file file-filter]]
     [mrsudoku.solveur :as s]
-    [csp.ac3 :as ac3]
     [mrsudoku.reader :as r])
   (:import (javax.swing.SwingUtilities)))
 
 
-(defn test-sudoku
-  "retourne les nouveaux domaines diminuer au maximun d'un sudoku, retourne nil si ce n'est pas un vrai sudoku"
-  [doms]
-  (loop [doms doms stop false]
-    (if stop
-      (let [s/new-doms (ac3/lazy-gen s/sudoku-constraint doms s/aux-reduce-doms)]
-        (if (sudoku-ok doms)
-          doms
-          nil))
-      (if-let [part' (s/new-doms (s/partition-doms doms))]
-        (let [doms' (s/fusion-doms part')]
-          (recur doms' (= doms doms')))
-          nil))))
+
 
 (def default-color "white")
 (def conflict-color "red")
@@ -90,11 +77,13 @@
 (defn show-solution
       [grid e]
       (if-let [doms (s/test-sudoku (s/generate-doms-sudoku grid 9))]
-        (let [solve (s/update-grid grid doms)]
-          (invoke-later
-            (-> (mk-frame-solve solve (atom {:grid solve}))
-                pack!
-                show!)))
+        (if (= 1 (count doms))
+          (let [solve (s/update-grid grid (first doms))]
+            (invoke-later
+              (-> (mk-frame-solve solve (atom {:grid solve}))
+                  pack!
+                  show!)))
+          (alert e "Il n'y a pas qu'une unique solution"))
         (alert e "Il n'y a pas qu'une unique solution")))
 
 (defn mk-main-frame [grid ctrl]

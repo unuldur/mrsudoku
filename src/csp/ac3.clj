@@ -1,9 +1,7 @@
 (ns csp.ac3
   (:use midje.sweet)
   (:require
-    [csp.alldiff :as all]
-    [mrsudoku.grid :as grid]
-    [mrsudoku.solveur :as solv]))
+    [csp.alldiff :as all]))
 
 (defn choix-variable-min [doms] (first (apply min-key #(count %) doms)))
 
@@ -328,39 +326,4 @@
  (count (lazy-gen  [] {:a #{ 1 2 3 4 5} :b #{ 1 2 3 4 5} :c #{ 1 2 3 4 5} }))
   => (* 2 5 ))
 
-(def ^:private sudoku-test
-  [[;; row 1
-    [(grid/mk-cell 5) (grid/mk-cell 3) (grid/mk-cell)
-     (grid/mk-cell 6) (grid/mk-cell) (grid/mk-cell)
-     (grid/mk-cell) (grid/mk-cell 9) (grid/mk-cell 8)]
-    [(grid/mk-cell) (grid/mk-cell 7) (grid/mk-cell)
-     (grid/mk-cell 1) (grid/mk-cell 9) (grid/mk-cell 5)
-     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell)]
-    [(grid/mk-cell) (grid/mk-cell) (grid/mk-cell)
-     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell)
-     (grid/mk-cell) (grid/mk-cell 6) (grid/mk-cell)] ],
-   [;; row 2
-    [(grid/mk-cell 8) (grid/mk-cell) (grid/mk-cell)
-     (grid/mk-cell 4) (grid/mk-cell) (grid/mk-cell)
-     (grid/mk-cell 7) (grid/mk-cell) (grid/mk-cell)]
-    [(grid/mk-cell) (grid/mk-cell 6) (grid/mk-cell)
-     (grid/mk-cell 8) (grid/mk-cell) (grid/mk-cell 3)
-     (grid/mk-cell) (grid/mk-cell 2) (grid/mk-cell)]
-    [(grid/mk-cell) (grid/mk-cell) (grid/mk-cell 3)
-     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell 1)
-     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell 6)]],
-   [;; row 3
-    [(grid/mk-cell) (grid/mk-cell 6) (grid/mk-cell)
-      (grid/mk-cell) (grid/mk-cell) (grid/mk-cell)
-     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell)]
-    [(grid/mk-cell) (grid/mk-cell) (grid/mk-cell)
-     (grid/mk-cell 4) (grid/mk-cell 1) (grid/mk-cell 9)
-     (grid/mk-cell) (grid/mk-cell 8) (grid/mk-cell)]
-    [(grid/mk-cell 2) (grid/mk-cell 8) (grid/mk-cell)
-     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell 5)
-     (grid/mk-cell) (grid/mk-cell 7) (grid/mk-cell 9)]]])
-
-
-
-(lazy-gen [] (solv/generate-doms-sudoku sudoku-test 9) solv/aux-reduce-doms)
 

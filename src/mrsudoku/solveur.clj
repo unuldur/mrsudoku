@@ -112,25 +112,17 @@
                                []
                                (range 1 10)))
 
-(defn sudoku-ok
-  "retourne si le sudoku est bon"
+(defn aux-reduce-doms
   [doms]
-  (reduce (fn [res [var vals]] (if (= 1 (count vals))
-                                 res
-                                 false)) true doms))
+  (if-let [part' (new-doms (partition-doms doms))]
+    (let [doms' (fusion-doms part')]
+      doms')
+    nil))
 
 (defn test-sudoku
   "retourne les nouveaux domaines diminuer au maximun d'un sudoku, retourne nil si ce n'est pas un vrai sudoku"
   [doms]
-  (loop [doms doms stop false]
-    (if stop
-      (if-let [res (ac3/generate-and-test sudoku-constraint doms {})]
-          res
-          nil)
-      (if-let [part' (new-doms (partition-doms doms))]
-        (let [doms' (fusion-doms part')]
-          (recur doms' (= doms doms')))
-          nil))))
+  (ac3/lazy-gen sudoku-constraint doms aux-reduce-doms))
 
 
 (defn update-grid
