@@ -1,21 +1,9 @@
 (ns csp.ac3
   (:use midje.sweet)
   (:require
-    [csp.alldiff :as all]))
-
-(defn mkvar [prefix num]
-  (keyword (str prefix num)))
-
-(def coloriage-doms (reduce (fn [res i] (assoc res (mkvar "v" i) #{:bleu :rouge :vert}))
-                            {}
-                            (range 1 8)))
-
-
-(def coloriage-constraints (mapv (fn [x y] {:var1 (mkvar "v" x)
-                                            :var2 (mkvar "v" y)
-                                            :check not=})
-                                 [1 1 2 2 3 3 3 4 5 6]
-                                 [2 3 3 4 4 5 5 5 6 7]))
+    [csp.alldiff :as all]
+    [mrsudoku.grid :as grid]
+    [mrsudoku.solveur :as solv]))
 
 (defn choix-variable-min [doms] (first (apply min-key #(count %) doms)))
 
@@ -45,18 +33,37 @@
 
 
 (defn check-constraint
-  "docstring"
+  "verifie si pour 2 valeurs la contraint est respecter `xvar` represente le non de la valeur `xval`"
   [contrainte xvar xval yval]
   (if (= xvar :var1)
     ((:check contrainte) xval yval)
     ((:check contrainte) yval xval)))
 
-(let [const {:var1 :r4
-             :var2 :m
-             :check =}]
-  (check-constraint const :var1 4 4))
+(fact
+  (let [const {:var1 :r4
+               :var2 :m
+               :check =}]
+    (check-constraint const :var1 4 4))
+  => true
+
+
+  (let [const {:var1 :r4
+               :var2 :m
+               :check >}]
+    (check-constraint const :var1 10 1))
+  => true
+
+
+  (let [const {:var1 :r4
+               :var2 :m
+               :check >}]
+    (check-constraint const :var2 10 1))
+  => false)
+
+
 
 (defn support
+  "retour la premiere valeur de `ydom` qui valide la `contraint` pour `xvar` `xval`"
   [xvar xval ydom contrainte]
   (reduce (fn [res yval]
             (if (check-constraint contrainte
@@ -65,11 +72,17 @@
                                   yval)
               (reduced yval)
               res)) nil ydom))
-
-(let [const {:var1 :r4
-             :var2 :m
-             :check =}]
-  (support :var2 4 #{1 2 3 4 5} const))
+(fact
+  (let [const {:var1 :r4
+               :var2 :m
+               :check =}]
+    (support :var2 4 #{1 2 3 4 5} const))
+  => 4
+  (let [const {:var1 :r4
+               :var2 :m
+               :check =}]
+    (support :var2 4 #{1 2 3 } const))
+  => nil)
 
 ;;revision des domaines
 
@@ -77,7 +90,7 @@
 (declare update-support)
 
 (defn ovar
-  "docstring"
+  "retour le nom de l'autre variable"
   [xvar]
   (if (= xvar :var1)
     :var2
@@ -85,7 +98,7 @@
 
 
 (defn check-cache
-  "docstring"
+  "verifie si le cahe est a jour et comporte la donner"
   [constraint supp doms const-ref xvar x xval]
   (if-let [yval (get (nth supp const-ref) [x xval])]
     (let [yvar (ovar xvar), y (get constraint yvar)]
@@ -96,7 +109,7 @@
     [true, supp]))
 
 (defn update-support
-  "docstring"
+  "met a jour le support en a sociant yval a [x xval] et reciproquement"
   [supp const-ref x xval y yval]
   (-> supp
       (update const-ref (fn [xsupp] (assoc xsupp [x xval] yval)))
@@ -144,6 +157,7 @@
 (declare update-todo)
 
 (defn ac3
+  "reduit les domaine en verifiant que chaque valeur de chaque variable verifi les contraintes  et suprimer des dommaine les valeurs incompatile"
   [constraints doms]
   (let [supp (init-support constraints)
         todo (init-todo constraints)]
@@ -162,6 +176,7 @@
         doms))))
 
 (defn init-todo
+  "initialse la liste des choses a faire"
   [constraints]
   (loop [const-ref 0, todo #{}]
     (if (< const-ref (count constraints))
@@ -169,10 +184,18 @@
       todo)))
 
 (defn select-todo [constraints doms todo]
+  "recupere la prochaine tache"
   (let [[const-ref, xvar] (first todo)]
     [const-ref, xvar, (rest todo)]))
 
+;;TODO **EXERCICE** Proposer une autre heuristique pour la selection d'un autre couple variable et comparer les performances pour le zebre
+(defn select-todo-min
+  "Choisi la vairable avec le domaine minimun"
+  [constraints doms todo]
+  ())
+
 (defn update-todo
+  "met a jour la liste de taches"
   [constraints prev-cref xvar x todo]
   (loop [const-ref 0, todo todo]
     (if (< const-ref (count constraints))
@@ -190,43 +213,68 @@
 
 
 
+
+
+
 (defn valider-choix
   "revois le nouveaux domaine pour avec certaine valeur deja fixé"
-  [domaine choix contrainte]
+  [domaine choix contrainte alldifAdapt]
   (let [domaine (reduce (fn [res [cle valeur]] ;; rajoute a domaine les choix
                           (assoc res cle (set (list valeur))))
                         domaine
                         choix)]
-    (if-let [domaine' (ac3 contrainte domaine)] ;;calcule le domaine qui
-      (if-let [domaine' (all/alldiff domaine')] ;;correspond aux contraintes
+    (if-let [domaine' (alldifAdapt domaine)];;correspond aux contraintes
+      (if-let [domaine' (ac3 contrainte domaine')] ;;calcule le domaine qui
+
 
 
         (reduce (fn [res [cle _]] ;;eleve au domaine les choix
-                (dissoc res cle))
+                  (dissoc res cle))
               domaine'
               choix)
         nil)
       nil)))
 
-
 (fact
- (valider-choix  {:b #{ :1 :2 :3} :c #{ :1 :2 :3} } {:a :1} {}) => {:b #{ :2 :3} :c #{ :2 :3}})
+ (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [] all/alldiff )
+  => {:b #{9 3} :c #{2 3}}
+
+ (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [
+            {:var1 :c
+             :var2 :b
+             :check =}]
+             all/alldiff    )
+  => {:b #{3} :c #{3}}
+
+ (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [
+            {:var1 :c
+             :var2 :b
+             :check >=}]
+             all/alldiff    )
+
+  => {:b #{3}, :c #{3}}
+ (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [
+            {:var1 :c
+             :var2 :b
+             :check >}]
+            all/alldiff    )
+  => nil )
 
 ;; structure stack :
 ;; [doms choix stack-précédente]
-;; init    : [ {:a { :1 :2 :3} :b { :1 :2 :3} :c { :1 :2 :3} } {} {} ]
+;; init    : [ {:a #{ 1 2 3} :b #{ 1 2 3} :c #{ 1 2 3} } {} {} ]
 
-;; etape 2 : [ {:b { :2 :3} :c { :2 :3} } {:a :1}
-;;            [   {:a { :2 :3} :b { :1 :2 :3} :c { :1 :2 :3} } {} {} ] ]
+;; etape 2 : [ {:b #{ 2 3} :c #{ 2 3} } {:a 1}
+;;            [   {:a { 2 3} :b { 1 2 3} :c { 1 2 3} } {} {} ] ]
 
-;; etape 3 : [ {:c { :3} } {:a :1 :b :2 }
-;;             [ {:b { :3} :c { :2 :3} } {:a :1}
-;;               [   {:a { :2 :3} :b { :1 :2 :3} :c { :1 :2 :3} } {} {} ] ] ]
+;; etape 3 : [ {:c #{ 3} } {:a 1 :b 2 }
+;;             [ {:b #{ 3} :c #{ 2 3} } {:a 1}
+;;               [   {:a #{ 2 3} :b #{ 1 2 3} :c #{ 1 2 3} } {} {} ] ] ]
 
-;; etape 3 : [{:a :1 :b :2 :c :3}    <-- choix
-;;             [ {:c {} } {:a :1 :b :2}]
-;;               [ {:b { :3} :c { :2 :3} } {:a :1}
-;;                 [   {:a { :2 :3} :b { :1 :2 :3} :c { :1 :2 :3} } {} {} ] ] ]
+;; etape 3 : [{:a 1 :b 2 :c 3}    <-- choix
+;;             [ {:c #{} } {:a 1 :b 2}]
+;;               [ {:b #{ 3} :c #{ 2 3} } {:a 1}
+;;                 [   {:a #{ 2 3} :b #{ 1 2 3} :c #{ 1 2 3} } {} {} ] ] ]
 
 
 
@@ -234,8 +282,8 @@
 
 
 (defn gen-aux
-  "construit la stack et retour un couple [choix next-stack]"
-  [constraint stack]
+  "construit la stack et retour un couple [choix next-stack fonction de difference]"
+  [constraint stack alldifAdapt]
   (if (empty? stack)
     nil
     (let [[doms choix next-stack] stack
@@ -243,24 +291,76 @@
       (if (empty? doms)
         [choix next-stack] ;;retour
         (if (empty? variables)
-          (gen-aux constraint next-stack)
+          (gen-aux constraint next-stack alldifAdapt)
           (let [ choix-val (first variables)
                 new-choix (assoc choix var choix-val)
                 doms' (assoc doms var (set (rest variables)))
                 new-next-stack [doms' choix next-stack]]    ;; calcule le next stack en y retirant ce que l'on est entreint de tester
 
-            (if-let [new-doms (valider-choix (dissoc doms var ) new-choix  constraint)]
-              (gen-aux constraint [new-doms new-choix new-next-stack])
-              (gen-aux constraint new-next-stack))))))))
+            (if-let [new-doms (valider-choix (dissoc doms var ) new-choix  constraint alldifAdapt)]
+              (gen-aux constraint [new-doms new-choix new-next-stack] alldifAdapt)
+              (gen-aux constraint new-next-stack alldifAdapt))))))))
 
+
+(gen-aux [] [ {:a #{ 1 2 3} :b #{ 1 2 3} :c #{ 1 2 3} } {} {} ] all/alldiff)
+
+
+(gen-aux [] [{:b #{}} {:a 1, :c 3} [{:c #{2}, :b #{3 2}} {:a 1} [{:a #{3 2}, :b #{1 3 2}, :c #{1 3 2}} {} {}]]] all/alldiff)
 
 
 (defn lazy-gen
   "genere la sequence des solutions possibles"
-  ([constraint doms] (lazy-gen constraint doms [doms {} {}]))
-  ([constraint doms stack]
-   (if-let [[sol stack'] (gen-aux constraint stack)]
+  ([constraint doms] (lazy-gen constraint doms [doms {} {}] all/alldiff ))
+  ([constraint doms alldifAdapt] (lazy-gen constraint doms [doms {} {}] alldifAdapt))
+  ([constraint doms stack alldifAdapt]
+   (if-let [[sol stack'] (gen-aux constraint stack alldifAdapt)]
      (lazy-seq
        (cons
          sol
-         (lazy-gen constraint doms stack'))))))
+         (lazy-gen constraint doms stack' alldifAdapt))))))
+(fact
+ (count (lazy-gen  [] {:a #{ 1 2 3} :b #{ 1 2 3} :c #{ 1 2 3} }))
+  => (*  2 3 )
+
+ (count (lazy-gen  [] {:a #{ 1 2 3 4 } :b #{ 1 2 3 4 } :c #{ 1 2 3 4 } }))
+  => (* 2 4 )
+
+ (count (lazy-gen  [] {:a #{ 1 2 3 4 5} :b #{ 1 2 3 4 5} :c #{ 1 2 3 4 5} }))
+  => (* 2 5 ))
+
+(def ^:private sudoku-test
+  [[;; row 1
+    [(grid/mk-cell 5) (grid/mk-cell 3) (grid/mk-cell)
+     (grid/mk-cell 6) (grid/mk-cell) (grid/mk-cell)
+     (grid/mk-cell) (grid/mk-cell 9) (grid/mk-cell 8)]
+    [(grid/mk-cell) (grid/mk-cell 7) (grid/mk-cell)
+     (grid/mk-cell 1) (grid/mk-cell 9) (grid/mk-cell 5)
+     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell)]
+    [(grid/mk-cell) (grid/mk-cell) (grid/mk-cell)
+     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell)
+     (grid/mk-cell) (grid/mk-cell 6) (grid/mk-cell)] ],
+   [;; row 2
+    [(grid/mk-cell 8) (grid/mk-cell) (grid/mk-cell)
+     (grid/mk-cell 4) (grid/mk-cell) (grid/mk-cell)
+     (grid/mk-cell 7) (grid/mk-cell) (grid/mk-cell)]
+    [(grid/mk-cell) (grid/mk-cell 6) (grid/mk-cell)
+     (grid/mk-cell 8) (grid/mk-cell) (grid/mk-cell 3)
+     (grid/mk-cell) (grid/mk-cell 2) (grid/mk-cell)]
+    [(grid/mk-cell) (grid/mk-cell) (grid/mk-cell 3)
+     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell 1)
+     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell 6)]],
+   [;; row 3
+    [(grid/mk-cell) (grid/mk-cell 6) (grid/mk-cell)
+      (grid/mk-cell) (grid/mk-cell) (grid/mk-cell)
+     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell)]
+    [(grid/mk-cell) (grid/mk-cell) (grid/mk-cell)
+     (grid/mk-cell 4) (grid/mk-cell 1) (grid/mk-cell 9)
+     (grid/mk-cell) (grid/mk-cell 8) (grid/mk-cell)]
+    [(grid/mk-cell 2) (grid/mk-cell 8) (grid/mk-cell)
+     (grid/mk-cell) (grid/mk-cell) (grid/mk-cell 5)
+     (grid/mk-cell) (grid/mk-cell 7) (grid/mk-cell 9)]]])
+
+
+
+(lazy-gen [] (solv/generate-doms-sudoku sudoku-test 9) solv/aux-reduce-doms)
+
