@@ -216,46 +216,38 @@
 
 (defn valider-choix
   "revois le nouveaux domaine pour avec certaine valeur deja fixé"
-  [domaine choix contrainte alldifAdapt]
+  [domaine choix contrainte]
   (let [domaine (reduce (fn [res [cle valeur]] ;; rajoute a domaine les choix
                           (assoc res cle (set (list valeur))))
                         domaine
                         choix)]
-    (if-let [domaine' (alldifAdapt domaine)];;correspond aux contraintes
-      (if-let [domaine' (ac3 contrainte domaine')] ;;calcule le domaine qui
-
-
-
+      (if-let [domaine' (ac3 contrainte domaine)] ;;calcule le domaine qui
         (reduce (fn [res [cle _]] ;;eleve au domaine les choix
                   (dissoc res cle))
               domaine'
               choix)
-        nil)
-      nil)))
+        nil)))
 
 (fact
- (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [] all/alldiff )
+ (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [])
   => {:b #{9 3} :c #{2 3}}
 
  (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [
             {:var1 :c
              :var2 :b
-             :check =}]
-             all/alldiff    )
+             :check =}])
   => {:b #{3} :c #{3}}
 
  (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [
             {:var1 :c
              :var2 :b
-             :check >=}]
-             all/alldiff    )
+             :check >=}])
 
   => {:b #{3}, :c #{3}}
  (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [
             {:var1 :c
              :var2 :b
-             :check >}]
-            all/alldiff    )
+             :check >}])
   => nil )
 
 ;; structure stack :
@@ -281,7 +273,7 @@
 
 (defn gen-aux
   "construit la stack et retour un couple [choix next-stack fonction de difference]"
-  [constraint stack alldifAdapt]
+  [constraint stack]
   (if (empty? stack)
     nil
     (let [[doms choix next-stack] stack
@@ -289,33 +281,32 @@
       (if (empty? doms)
         [choix next-stack] ;;retour
         (if (empty? variables)
-          (gen-aux constraint next-stack alldifAdapt)
+          (gen-aux constraint next-stack)
           (let [ choix-val (first variables)
                 new-choix (assoc choix var choix-val)
                 doms' (assoc doms var (set (rest variables)))
                 new-next-stack [doms' choix next-stack]]    ;; calcule le next stack en y retirant ce que l'on est entreint de tester
 
-            (if-let [new-doms (valider-choix (dissoc doms var ) new-choix  constraint alldifAdapt)]
-              (gen-aux constraint [new-doms new-choix new-next-stack] alldifAdapt)
-              (gen-aux constraint new-next-stack alldifAdapt))))))))
+            (if-let [new-doms (valider-choix (dissoc doms var ) new-choix  constraint)]
+              (gen-aux constraint [new-doms new-choix new-next-stack])
+              (gen-aux constraint new-next-stack))))))))
 
 
-(gen-aux [] [ {:a #{ 1 2 3} :b #{ 1 2 3} :c #{ 1 2 3} } {} {} ] all/alldiff)
+(gen-aux [] [ {:a #{ 1 2 3} :b #{ 1 2 3} :c #{ 1 2 3} } {} {} ])
 
 
-(gen-aux [] [{:b #{}} {:a 1, :c 3} [{:c #{2}, :b #{3 2}} {:a 1} [{:a #{3 2}, :b #{1 3 2}, :c #{1 3 2}} {} {}]]] all/alldiff)
+(gen-aux [] [{:b #{}} {:a 1, :c 3} [{:c #{2}, :b #{3 2}} {:a 1} [{:a #{3 2}, :b #{1 3 2}, :c #{1 3 2}} {} {}]]])
 
 
 (defn lazy-gen
   "genere la sequence des solutions possibles"
-  ([constraint doms] (lazy-gen constraint doms [doms {} {}] all/alldiff ))
-  ([constraint doms alldifAdapt] (lazy-gen constraint doms [doms {} {}] alldifAdapt))
-  ([constraint doms stack alldifAdapt]
-   (if-let [[sol stack'] (gen-aux constraint stack alldifAdapt)]
+  ([constraint doms] (lazy-gen constraint doms [doms {} {}]))
+  ([constraint doms stack]
+   (if-let [[sol stack'] (gen-aux constraint stack)]
      (lazy-seq
        (cons
          sol
-         (lazy-gen constraint doms stack' alldifAdapt))))))
+         (lazy-gen constraint doms stack'))))))
 (fact
  (count (lazy-gen  [] {:a #{ 1 2 3} :b #{ 1 2 3} :c #{ 1 2 3} }))
   => (*  2 3 )
