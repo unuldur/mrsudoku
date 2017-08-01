@@ -1,7 +1,8 @@
 
 (ns mrsudoku.grid
   (:use midje.sweet)
-  (:require [mrsudoku.utils :refer [concatv]]))
+  (:require [mrsudoku.utils :refer [concatv]]
+            [clojure.test]))
 
 (defn mk-cell
   "Create a new cell."
@@ -321,7 +322,7 @@ with `cx` the column number and `cy` the row number."
 (fact
  (row sudoku-grid 7)
  => [{:status :empty}
-     {:status :empty}
+     {:status :init, :value 6}
      {:status :empty}
      {:status :empty}
      {:status :empty}
@@ -352,7 +353,7 @@ with `cx` the column number and `cy` the row number."
 
 (fact
  (grid->str sudoku-grid)
- => " 5   3   .   .   7   .   .   .   . \n 6   .   .   1   9   5   .   .   . \n .   9   8   .   .   .   .   6   . \n 8   .   .   .   6   .   .   .   3 \n 4   .   .   8   .   3   .   .   1 \n 7   .   .   .   2   .   .   .   6 \n .   .   .   .   .   .   2   8   . \n .   .   6   4   1   9   .   .   5 \n .   .   .   .   8   .   .   7   9 ")
+ => " 5   3   .   .   7   .   .   .   . \n 6   .   .   1   9   5   .   .   . \n .   9   8   .   .   .   .   6   . \n 8   .   .   .   6   .   .   .   3 \n 4   .   .   8   .   3   .   .   1 \n 7   .   .   .   2   .   .   .   6 \n .   6   .   .   .   .   2   8   . \n .   .   .   4   1   9   .   .   5 \n .   .   .   .   8   .   .   7   9 ")
 
 (defn col
   "Get the #`c` column of the `grid`."
@@ -360,6 +361,8 @@ with `cx` the column number and `cy` the row number."
   {:pre [(<= 1 c 9)]}
   (into [] (for [cy (range 1 10)]
              (cell grid c cy))))
+
+
 
 (fact
  (col sudoku-grid 1)

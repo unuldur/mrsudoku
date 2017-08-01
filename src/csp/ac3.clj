@@ -230,25 +230,25 @@
 
 (fact
  (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [])
-  => {:b #{9 3} :c #{2 3}}
+  => {:b #{9 3 1} :c #{1 2 3}}
 
  (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [
             {:var1 :c
              :var2 :b
              :check =}])
-  => {:b #{3} :c #{3}}
+  => {:b #{1 3} :c #{1 3}}
 
  (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [
             {:var1 :c
              :var2 :b
              :check >=}])
+  => {:b #{1 3}, :c #{1 2 3}}
 
-  => {:b #{3}, :c #{3}}
  (valider-choix  {:b #{ 1 9 3} :c #{ 1 2 3} } { :a 1} [
             {:var1 :c
              :var2 :b
              :check >}])
-  => nil )
+  => {:b #{1}, :c #{2 3}} )
 
 ;; structure stack :
 ;; [doms choix stack-précédente]
@@ -309,12 +309,12 @@
          (lazy-gen constraint doms stack'))))))
 (fact
  (count (lazy-gen  [] {:a #{ 1 2 3} :b #{ 1 2 3} :c #{ 1 2 3} }))
-  => (*  2 3 )
+  => 27
 
  (count (lazy-gen  [] {:a #{ 1 2 3 4 } :b #{ 1 2 3 4 } :c #{ 1 2 3 4 } }))
-  => (* 2 4 )
+  => 64
 
  (count (lazy-gen  [] {:a #{ 1 2 3 4 5} :b #{ 1 2 3 4 5} :c #{ 1 2 3 4 5} }))
-  => (* 2 5 ))
+  => 125)
 
 
